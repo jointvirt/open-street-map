@@ -20,6 +20,73 @@
 - [Docker](https://docs.docker.com/get-docker/) и Docker Compose v2 (для стека одной командой).
 - По желанию: [.NET 8 **runtime**](https://dotnet.microsoft.com/download/dotnet/8.0), если нужен запуск тестов без roll-forward (в репозитории в `Directory.Build.props` задано `RollForward=LatestMajor` для случаев, когда установлен только более новый runtime).
 
+## Сборка для разработчиков
+
+Рабочая папка — **`RoutingService`** (рядом с `RoutingService.slnx`, `docker-compose.yml`).
+
+### Версия SDK
+
+В корне задан [`global.json`](global.json): рекомендуемая версия SDK и `rollForward`. Установите [.NET SDK](https://dotnet.microsoft.com/download), с которым собирается `net8.0` (подойдёт SDK **8.x** или новее, совместимый с проектом). Проверка:
+
+```bash
+dotnet --info
+```
+
+### Восстановление, сборка, тесты
+
+```bash
+cd RoutingService
+
+dotnet restore RoutingService.slnx
+dotnet build RoutingService.slnx -c Release --no-restore
+dotnet test RoutingService.slnx -c Release --no-build
+```
+
+Одной строкой (часто удобно в CI):
+
+```bash
+dotnet test RoutingService/RoutingService.slnx -c Release
+```
+
+(если вы в корне монорепозитория — поправьте путь к `RoutingService.slnx`).
+
+### Запуск API без Docker
+
+Нужен **доступный OSRM** по URL из конфигурации (по умолчанию `http://localhost:5000` — например, полный стек из `docker compose up`, но достаточно сервисов до `osrm`, без `routing-api`).
+
+```bash
+cd RoutingService/src/RoutingService.Api
+dotnet run
+```
+
+Профиль **`http`**: Swagger на **http://localhost:8080/swagger** (см. `Properties/launchSettings.json`).
+
+При другом адресе OSRM (из каталога **`RoutingService`**):
+
+```bash
+export Routing__Osrm__BaseUrl="http://localhost:5000"
+dotnet run --project src/RoutingService.Api/RoutingService.Api.csproj
+```
+
+### Публикация артефакта (деплой без исходников на сервере)
+
+```bash
+cd RoutingService
+dotnet publish src/RoutingService.Api/RoutingService.Api.csproj -c Release -o ./artifacts/routing-api
+```
+
+В `./artifacts/routing-api` будет готовый к запуску вывод (`dotnet RoutingService.Api.dll` на машине с **ASP.NET Core 8 runtime**).
+
+### Сборка только Docker-образа API
+
+Из каталога **`RoutingService`**:
+
+```bash
+docker build -t routingservice-api:local .
+```
+
+Полный стек с OSRM по-прежнему: `docker compose up --build` (см. ниже).
+
 ## Запуск одной командой (Docker)
 
 Из каталога **`RoutingService`** (где лежит `docker-compose.yml`):
